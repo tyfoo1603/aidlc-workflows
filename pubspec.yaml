@@ -46,7 +46,6 @@ dependencies:
   qr_flutter: ^4.1.0
 
   # File Picker
-  file_picker: ^6.1.0
   image_picker: ^1.0.5
   image: ^4.0.17
 

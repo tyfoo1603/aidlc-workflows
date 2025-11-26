@@ -4,6 +4,8 @@ import 'package:easy_app/core/error/app_error.dart';
 import 'package:easy_app/core/error/result.dart';
 import 'package:easy_app/core/storage/secure_token_storage.dart';
 import 'package:easy_app/core/network/certificate_pinning_interceptor.dart';
+import 'package:easy_app/core/network/custom_log_interceptor.dart';
+import 'package:easy_app/core/utils/app_logger.dart';
 import 'package:dio/io.dart';
 import 'package:easy_app/features/auth/domain/entities/token.dart';
 
@@ -49,9 +51,14 @@ class ApiService {
     }
 
     if (_config.enableLogging) {
-      _dio.interceptors.add(LogInterceptor(
-        requestBody: true,
-        responseBody: true,
+      _dio.interceptors.add(CustomLogInterceptor(
+        logRequest: true,
+        logResponse: true,
+        logError: true,
+        logRequestHeaders: true,
+        logResponseHeaders: false,
+        logRequestBody: true,
+        logResponseBody: true,
       ));
     }
   }
@@ -61,6 +68,7 @@ class ApiService {
   /// Exchange authorization code for tokens
   Future<Result<Token>> exchangeAuthCode(String code) async {
     try {
+      AppLogger.info('Exchanging authorization code for tokens', tag: 'ApiService');
       // Microsoft OAuth token endpoint
       final response = await _dio.post(
         _config.microsoftTokenUrl,
@@ -81,14 +89,17 @@ class ApiService {
       final expiresIn = data['expires_in'] as int;
       final now = DateTime.now();
 
-      return Success(Token(
+      final token = Token(
         accessToken: data['access_token'] as String,
         refreshToken: data['refresh_token'] as String,
         expiresAt: now.add(Duration(seconds: expiresIn)),
         issuedAt: now,
         userId: '', // TODO: Extract from token or fetch profile
-      ));
+      );
+      AppLogger.success('Successfully exchanged authorization code for tokens', tag: 'ApiService');
+      return Success(token);
     } catch (e) {
+      AppLogger.error('Failed to exchange authorization code', tag: 'ApiService', error: e);
       return Failure(_handleError(e));
     }
   }
@@ -96,6 +107,7 @@ class ApiService {
   /// Refresh access token
   Future<Result<Token>> refreshToken(String refreshToken) async {
     try {
+      AppLogger.info('Refreshing access token', tag: 'ApiService');
       // Microsoft OAuth token endpoint
       final response = await _dio.post(
         _config.microsoftTokenUrl,
@@ -119,14 +131,17 @@ class ApiService {
       final existingTokens = await _tokenStorage.getTokens();
       final userId = existingTokens?.userId ?? '';
 
-      return Success(Token(
+      final token = Token(
         accessToken: data['access_token'] as String,
         refreshToken: data['refresh_token'] as String,
         expiresAt: now.add(Duration(seconds: expiresIn)),
         issuedAt: now,
         userId: userId,
-      ));
+      );
+      AppLogger.success('Successfully refreshed access token', tag: 'ApiService');
+      return Success(token);
     } catch (e) {
+      AppLogger.error('Failed to refresh access token', tag: 'ApiService', error: e);
       return Failure(_handleError(e));
     }
   }
@@ -551,7 +566,12 @@ class _AuthInterceptor extends Interceptor {
         // Add token even if expired or about to expire
         // The onError handler will refresh if we get a 401
         options.headers['Authorization'] = 'Bearer ${tokens.accessToken}';
+        AppLogger.debug('Added Bearer token to request', tag: 'AuthInterceptor');
+      } else {
+        AppLogger.warning('No tokens available for request', tag: 'AuthInterceptor');
       }
+    } else {
+      AppLogger.debug('Skipping authentication for OAuth/Graph API endpoint', tag: 'AuthInterceptor');
     }
 
     handler.next(options);
@@ -560,23 +580,31 @@ class _AuthInterceptor extends Interceptor {
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
     if (err.response?.statusCode == 401) {
+      AppLogger.warning('Received 401 Unauthorized, attempting token refresh', tag: 'AuthInterceptor');
       // Token expired or invalid, attempt to refresh and retry
       final tokens = await _tokenStorage.getTokens();
 
       // Only retry if we have a refresh token
       if (tokens != null && tokens.refreshToken.isNotEmpty) {
+        AppLogger.info('Refreshing token and retrying request', tag: 'AuthInterceptor');
         final retryResult =
             await _apiService.refreshAndRetry(err.requestOptions);
         if (retryResult.isSuccess) {
+          AppLogger.success('Token refreshed and request retried successfully', tag: 'AuthInterceptor');
           handler.resolve(Response(
             requestOptions: err.requestOptions,
             data: retryResult.valueOrNull,
           ));
           return;
+        } else {
+          AppLogger.error('Token refresh failed', tag: 'AuthInterceptor');
         }
+      } else {
+        AppLogger.warning('No refresh token available, cannot retry', tag: 'AuthInterceptor');
       }
 
       // If refresh failed or no tokens, clear tokens and require re-login
+      AppLogger.info('Clearing tokens and requiring re-login', tag: 'AuthInterceptor');
       await _tokenStorage.clearTokens();
     }
     handler.next(err);

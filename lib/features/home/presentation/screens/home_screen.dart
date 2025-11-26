@@ -44,11 +44,6 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('Easy App'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.announcement),
-            onPressed: () => _navigationService.navigateToAnnouncements(),
-            tooltip: 'Announcements',
-          ),
-          IconButton(
             icon: const Icon(Icons.login),
             onPressed: () => context.read<HomeCubit>().navigateToLogin(),
             tooltip: 'Login',
@@ -156,21 +151,81 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   const SizedBox(height: 16),
 
-                  // Modules Grid
-                  if (state.modules != null && state.modules!.isNotEmpty)
-                    ModuleGrid(
-                      modules: state.modules!,
-                      onModuleTap: (category) {
-                        context.read<HomeCubit>().navigateToModule(category);
-                      },
-                    )
-                  else
-                    const Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: Center(
-                        child: Text('No modules available'),
-                      ),
+                  // Modules Section
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Announcements Button
+                        Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Theme.of(context).colorScheme.outline,
+                              width: 1,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: TextButton(
+                            onPressed: () =>
+                                _navigationService.navigateToAnnouncements(),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.announcement,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Announcements',
+                                  style: TextStyle(
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // Modules Grid
+                        if (state.modules != null && state.modules!.isNotEmpty)
+                          ModuleGrid(
+                            modules: state.modules!,
+                            onModuleTap: (category) {
+                              context
+                                  .read<HomeCubit>()
+                                  .navigateToModule(category);
+                            },
+                          )
+                        else
+                          const Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: Center(
+                              child: Text('No modules available'),
+                            ),
+                          ),
+                      ],
                     ),
+                  ),
                 ],
               ),
             ),

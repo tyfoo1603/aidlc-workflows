@@ -17,6 +17,7 @@ import 'package:easy_app/features/home/domain/usecases/register_push_token_useca
 import 'package:easy_app/features/home/domain/usecases/check_app_version_usecase.dart';
 import 'package:easy_app/features/home/domain/usecases/check_maintenance_status_usecase.dart';
 import 'package:easy_app/core/di/dependency_injection.dart';
+import 'package:easy_app/core/utils/app_logger.dart';
 import 'dart:convert';
 
 /// Home state
@@ -108,6 +109,9 @@ class HomeCubit extends Cubit<HomeState> {
 
   /// Load home page data (all in parallel)
   Future<void> loadHomeData(String userId) async {
+    AppLogger.info('Loading home data',
+        tag: 'HomeCubit', data: {'userId': userId});
+
     emit(state.copyWith(
       isLoading: true,
       errorMessage: null,
@@ -116,6 +120,7 @@ class HomeCubit extends Cubit<HomeState> {
 
     try {
       // Load all data in parallel
+      AppLogger.debug('Starting parallel data loading', tag: 'HomeCubit');
       final results = await Future.wait([
         _loadHomeModulesUseCase.execute(userId),
         _loadUserProfileUseCase.execute(userId),
@@ -128,6 +133,23 @@ class HomeCubit extends Cubit<HomeState> {
       final versionResult = results[2] as Result<AppVersion>;
       final maintenanceResult = results[3] as Result<MaintenanceStatus>;
 
+      // Log results
+      AppLogger.debug('Data loading completed', tag: 'HomeCubit', data: {
+        'modules': modulesResult.isSuccess
+            ? '${modulesResult.valueOrNull?.length ?? 0} modules'
+            : 'Failed',
+        'profile': profileResult.isSuccess ? 'Loaded' : 'Failed',
+        'version': versionResult.isSuccess ? 'Loaded' : 'Failed',
+        'maintenance': maintenanceResult.isSuccess ? 'Loaded' : 'Failed',
+      });
+
+      final errorMessage = _getFirstError([
+        modulesResult,
+        profileResult,
+        versionResult,
+        maintenanceResult,
+      ]);
+
       // Update state with results
       emit(state.copyWith(
         isLoading: false,
@@ -135,14 +157,22 @@ class HomeCubit extends Cubit<HomeState> {
         userSummary: profileResult.valueOrNull,
         appVersion: versionResult.valueOrNull,
         maintenanceStatus: maintenanceResult.valueOrNull,
-        errorMessage: _getFirstError([
-          modulesResult,
-          profileResult,
-          versionResult,
-          maintenanceResult,
-        ]),
+        errorMessage: errorMessage,
       ));
-    } catch (e) {
+
+      if (errorMessage != null) {
+        AppLogger.warning('Some data failed to load',
+            tag: 'HomeCubit', data: {'error': errorMessage});
+      } else {
+        AppLogger.success('Home data loaded successfully', tag: 'HomeCubit');
+      }
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        'Failed to load home data',
+        tag: 'HomeCubit',
+        error: e,
+        stackTrace: stackTrace,
+      );
       emit(state.copyWith(
         isLoading: false,
         errorMessage: 'Failed to load home data: ${e.toString()}',
@@ -152,24 +182,38 @@ class HomeCubit extends Cubit<HomeState> {
 
   /// Navigate to module
   Future<void> navigateToModule(LandingCategory category) async {
+    AppLogger.info('Navigating to module', tag: 'HomeCubit', data: {
+      'categoryId': category.id,
+      'categoryName': category.name,
+      'isInternal': category.isInternal,
+      'isWeb': category.isWeb,
+    });
+
     if (category.isInternal) {
       // Navigate to internal route based on category URL/ID
       // Map category ID to route
       final route = _mapCategoryToRoute(category.id);
       if (route != null) {
+        AppLogger.debug('Navigating to internal route',
+            tag: 'HomeCubit', data: {'route': route});
         _navigationService.router.push(route);
       } else {
         // Fallback: use URL as route
+        AppLogger.debug('Using category URL as route',
+            tag: 'HomeCubit', data: {'url': category.url});
         _navigationService.router.push(category.url);
       }
     } else if (category.isWeb) {
       // Open webview
+      AppLogger.debug('Opening webview',
+          tag: 'HomeCubit', data: {'url': category.url});
       await _navigationService.openWebView(category.url);
     }
   }
 
   /// Navigate to login using flutter_appauth
   Future<void> navigateToLogin() async {
+    AppLogger.info('Starting login flow', tag: 'HomeCubit');
     try {
       // Construct the authorization service configuration
       final serviceConfiguration = AuthorizationServiceConfiguration(
@@ -177,6 +221,13 @@ class HomeCubit extends Cubit<HomeState> {
             'https://login.microsoftonline.com/${_appConfig.microsoftTenantId}/oauth2/v2.0/authorize',
         tokenEndpoint: _appConfig.microsoftTokenUrl,
       );
+
+      AppLogger.debug('Initiating OAuth authorization',
+          tag: 'HomeCubit',
+          data: {
+            'tenantId': _appConfig.microsoftTenantId,
+            'clientId': _appConfig.microsoftClientId,
+          });
 
       // Perform authorization and token exchange
       final result = await _appAuth.authorizeAndExchangeCode(
@@ -191,8 +242,13 @@ class HomeCubit extends Cubit<HomeState> {
 
       // Successfully authenticated, store the tokens
       try {
+        AppLogger.info('OAuth authorization successful, processing tokens',
+            tag: 'HomeCubit');
+
         // Extract user ID from ID token (JWT)
         final userId = _extractUserIdFromIdToken(result.idToken);
+        AppLogger.debug('Extracted user ID from token',
+            tag: 'HomeCubit', data: {'userId': userId});
 
         // Create Token entity
         final token = Token(
@@ -206,6 +262,7 @@ class HomeCubit extends Cubit<HomeState> {
 
         // Save tokens to secure storage
         await _tokenStorage.saveTokens(token);
+        AppLogger.success('Tokens saved to secure storage', tag: 'HomeCubit');
 
         // Emit success message
         emit(state.copyWith(
@@ -213,8 +270,16 @@ class HomeCubit extends Cubit<HomeState> {
         ));
 
         // Navigate to home
+        AppLogger.info('Navigating to home after successful login',
+            tag: 'HomeCubit');
         _navigationService.navigateToHome();
-      } catch (e) {
+      } catch (e, stackTrace) {
+        AppLogger.error(
+          'Failed to store authentication data',
+          tag: 'HomeCubit',
+          error: e,
+          stackTrace: stackTrace,
+        );
         emit(state.copyWith(
           errorMessage: 'Failed to store authentication data: ${e.toString()}',
         ));
@@ -222,13 +287,25 @@ class HomeCubit extends Cubit<HomeState> {
     } on FlutterAppAuthUserCancelledException {
       // User cancelled the authentication flow
       // Handle gracefully - no error needed
+      AppLogger.info('User cancelled authentication', tag: 'HomeCubit');
     } on FlutterAppAuthPlatformException catch (e) {
       // Handle authentication errors
+      AppLogger.error(
+        'Authentication failed',
+        tag: 'HomeCubit',
+        error: {'message': e.message},
+      );
       emit(state.copyWith(
         errorMessage: 'Authentication failed: ${e.message}',
       ));
-    } catch (e) {
+    } catch (e, stackTrace) {
       // Handle other errors
+      AppLogger.error(
+        'Login failed with unexpected error',
+        tag: 'HomeCubit',
+        error: e,
+        stackTrace: stackTrace,
+      );
       emit(state.copyWith(
         errorMessage: 'Login failed: ${e.toString()}',
       ));
@@ -303,9 +380,11 @@ class HomeCubit extends Cubit<HomeState> {
 
   /// Copy authentication token to clipboard
   Future<void> copyTokenToClipboard() async {
+    AppLogger.info('Copying token to clipboard', tag: 'HomeCubit');
     try {
       final tokens = await _tokenStorage.getTokens();
       if (tokens == null || tokens.accessToken.isEmpty) {
+        AppLogger.warning('No authentication token found', tag: 'HomeCubit');
         emit(state.copyWith(
           errorMessage: 'No authentication token found',
         ));
@@ -313,10 +392,17 @@ class HomeCubit extends Cubit<HomeState> {
       }
 
       await Clipboard.setData(ClipboardData(text: tokens.accessToken));
+      AppLogger.success('Token copied to clipboard', tag: 'HomeCubit');
       emit(state.copyWith(
         successMessage: 'Token copied to clipboard',
       ));
-    } catch (e) {
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        'Failed to copy token',
+        tag: 'HomeCubit',
+        error: e,
+        stackTrace: stackTrace,
+      );
       emit(state.copyWith(
         errorMessage: 'Failed to copy token: ${e.toString()}',
       ));

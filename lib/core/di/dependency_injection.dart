@@ -30,6 +30,12 @@ final getIt = GetIt.instance;
 
 /// Setup dependency injection
 Future<void> setupDependencyInjection(Environment environment) async {
+  // 0. Initialize Logger
+  // Colors are auto-detected based on terminal support
+  // To force enable colors: AppLogger.enableColors = true (only works in terminals)
+  // To force disable colors: AppLogger.enableColors = false (for IDE debug console)
+  // Note: Colors don't work in IDE debug consoles, only in actual terminals
+
   // 1. Core Services (registered first)
 
   // App Configuration
