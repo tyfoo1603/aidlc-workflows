@@ -15,7 +15,7 @@ class AnnouncementRepository {
   Future<Result<List<Announcement>>> getAnnouncements() async {
     try {
       final result = await _apiService.getAnnouncements();
-      
+
       return result.fold(
         onSuccess: (data) {
           // Handle nested response structure: {status, message, data: {announcements: [...]}}
@@ -52,13 +52,13 @@ class AnnouncementRepository {
           } else if (data is List) {
             // Handle direct list response
             final announcements = data
-                .map((item) => AnnouncementModel.fromJson(
-                    item as Map<String, dynamic>))
+                .map((item) =>
+                    AnnouncementModel.fromJson(item as Map<String, dynamic>))
                 .map((model) => model.toEntity())
                 .toList();
             return Success(announcements);
           }
-          return Success([]);
+          return const Success([]);
         },
         onFailure: (error) => Failure(error),
       );
@@ -74,7 +74,7 @@ class AnnouncementRepository {
   Future<Result<List<Announcement>>> getAnnouncementsByPage(int page) async {
     try {
       final result = await _apiService.getAnnouncementsByPage(page);
-      
+
       return result.fold(
         onSuccess: (data) {
           // Handle nested response structure: {status, message, data: {announcements: [...]}}
@@ -92,24 +92,25 @@ class AnnouncementRepository {
               }
             }
             // Fallback: try direct list access
-            final items = data['announcements'] as List? ?? 
-                         data['data'] as List? ?? 
-                         data['items'] as List? ?? [];
+            final items = data['announcements'] as List? ??
+                data['data'] as List? ??
+                data['items'] as List? ??
+                [];
             final announcements = items
-                .map((item) => AnnouncementModel.fromJson(
-                    item as Map<String, dynamic>))
+                .map((item) =>
+                    AnnouncementModel.fromJson(item as Map<String, dynamic>))
                 .map((model) => model.toEntity())
                 .toList();
             return Success(announcements);
           } else if (data is List) {
             final announcements = data
-                .map((item) => AnnouncementModel.fromJson(
-                    item as Map<String, dynamic>))
+                .map((item) =>
+                    AnnouncementModel.fromJson(item as Map<String, dynamic>))
                 .map((model) => model.toEntity())
                 .toList();
             return Success(announcements);
           }
-          return Success([]);
+          return const Success([]);
         },
         onFailure: (error) => Failure(error),
       );
@@ -128,7 +129,7 @@ class AnnouncementRepository {
   ) async {
     try {
       final result = await _apiService.searchAnnouncements(searchText, page);
-      
+
       return result.fold(
         onSuccess: (data) {
           // Handle nested response structure: {status, message, data: {announcements: [...]}}
@@ -146,24 +147,25 @@ class AnnouncementRepository {
               }
             }
             // Fallback: try direct list access
-            final items = data['announcements'] as List? ?? 
-                         data['data'] as List? ?? 
-                         data['items'] as List? ?? [];
+            final items = data['announcements'] as List? ??
+                data['data'] as List? ??
+                data['items'] as List? ??
+                [];
             final announcements = items
-                .map((item) => AnnouncementModel.fromJson(
-                    item as Map<String, dynamic>))
+                .map((item) =>
+                    AnnouncementModel.fromJson(item as Map<String, dynamic>))
                 .map((model) => model.toEntity())
                 .toList();
             return Success(announcements);
           } else if (data is List) {
             final announcements = data
-                .map((item) => AnnouncementModel.fromJson(
-                    item as Map<String, dynamic>))
+                .map((item) =>
+                    AnnouncementModel.fromJson(item as Map<String, dynamic>))
                 .map((model) => model.toEntity())
                 .toList();
             return Success(announcements);
           }
-          return Success([]);
+          return const Success([]);
         },
         onFailure: (error) => Failure(error),
       );
@@ -179,13 +181,14 @@ class AnnouncementRepository {
   Future<Result<Announcement>> getAnnouncementDetail(String id) async {
     try {
       final result = await _apiService.getAnnouncementDetail(id);
-      
+
       return result.fold(
         onSuccess: (data) {
           // Handle nested response structure: {status, message, data: {...}}
           if (data is Map<String, dynamic>) {
             // Try to extract from data.data or data directly
-            final announcementData = data['data'] as Map<String, dynamic>? ?? data;
+            final announcementData =
+                data['data'] as Map<String, dynamic>? ?? data;
             final model = AnnouncementModel.fromJson(announcementData);
             return Success(model.toEntity());
           }
@@ -204,4 +207,3 @@ class AnnouncementRepository {
     }
   }
 }
-

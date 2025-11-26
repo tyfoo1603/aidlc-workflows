@@ -20,6 +20,22 @@ import 'package:easy_app/core/di/dependency_injection.dart';
 import 'package:easy_app/core/utils/app_logger.dart';
 import 'dart:convert';
 
+/// Success type indicator for home state
+enum SuccessType {
+  tokenCopied,
+  loginSuccess;
+
+  /// Get the display message for this success type
+  String get message {
+    switch (this) {
+      case SuccessType.tokenCopied:
+        return 'Token copied to clipboard';
+      case SuccessType.loginSuccess:
+        return 'Login successful! Welcome back.';
+    }
+  }
+}
+
 /// Home state
 class HomeState extends Equatable {
   final bool isLoading;
@@ -28,7 +44,7 @@ class HomeState extends Equatable {
   final AppVersion? appVersion;
   final MaintenanceStatus? maintenanceStatus;
   final String? errorMessage;
-  final String? successMessage;
+  final SuccessType? successType;
 
   const HomeState({
     this.isLoading = false,
@@ -37,7 +53,7 @@ class HomeState extends Equatable {
     this.appVersion,
     this.maintenanceStatus,
     this.errorMessage,
-    this.successMessage,
+    this.successType,
   });
 
   HomeState copyWith({
@@ -47,7 +63,7 @@ class HomeState extends Equatable {
     AppVersion? appVersion,
     MaintenanceStatus? maintenanceStatus,
     String? errorMessage,
-    String? successMessage,
+    SuccessType? successType,
   }) {
     return HomeState(
       isLoading: isLoading ?? this.isLoading,
@@ -56,7 +72,7 @@ class HomeState extends Equatable {
       appVersion: appVersion ?? this.appVersion,
       maintenanceStatus: maintenanceStatus ?? this.maintenanceStatus,
       errorMessage: errorMessage ?? this.errorMessage,
-      successMessage: successMessage ?? this.successMessage,
+      successType: successType ?? this.successType,
     );
   }
 
@@ -68,7 +84,7 @@ class HomeState extends Equatable {
         appVersion,
         maintenanceStatus,
         errorMessage,
-        successMessage,
+        successType,
       ];
 }
 
@@ -103,7 +119,7 @@ class HomeCubit extends Cubit<HomeState> {
             getIt<CheckMaintenanceStatusUseCase>(),
         _navigationService = navigationService ?? getIt<NavigationService>(),
         _appConfig = appConfig ?? getIt<AppConfig>(),
-        _appAuth = appAuth ?? FlutterAppAuth(),
+        _appAuth = appAuth ?? const FlutterAppAuth(),
         _tokenStorage = tokenStorage ?? getIt<SecureTokenStorage>(),
         super(const HomeState());
 
@@ -115,7 +131,7 @@ class HomeCubit extends Cubit<HomeState> {
     emit(state.copyWith(
       isLoading: true,
       errorMessage: null,
-      successMessage: null,
+      successType: null,
     ));
 
     try {
@@ -264,9 +280,9 @@ class HomeCubit extends Cubit<HomeState> {
         await _tokenStorage.saveTokens(token);
         AppLogger.success('Tokens saved to secure storage', tag: 'HomeCubit');
 
-        // Emit success message
+        // Emit success type
         emit(state.copyWith(
-          successMessage: 'Login successful! Welcome back.',
+          successType: SuccessType.loginSuccess,
         ));
 
         // Navigate to home
@@ -365,7 +381,7 @@ class HomeCubit extends Cubit<HomeState> {
   void clearMessages() {
     emit(state.copyWith(
       errorMessage: null,
-      successMessage: null,
+      successType: null,
     ));
   }
 
@@ -394,7 +410,7 @@ class HomeCubit extends Cubit<HomeState> {
       await Clipboard.setData(ClipboardData(text: tokens.accessToken));
       AppLogger.success('Token copied to clipboard', tag: 'HomeCubit');
       emit(state.copyWith(
-        successMessage: 'Token copied to clipboard',
+        successType: SuccessType.tokenCopied,
       ));
     } catch (e, stackTrace) {
       AppLogger.error(

@@ -72,18 +72,19 @@ class _HomeScreenState extends State<HomeScreen> {
           }
 
           // Show success message popup or snackbar
-          if (state.successMessage != null) {
+          if (state.successType != null) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              // Show snackbar for token copy, dialog for other success messages
-              if (state.successMessage!.contains('Token copied')) {
+              final successType = state.successType!;
+              // Show snackbar for token copy, dialog for other success types
+              if (successType == SuccessType.tokenCopied) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(state.successMessage!),
+                    content: Text(successType.message),
                     backgroundColor: Colors.green,
                   ),
                 );
               } else {
-                _showSuccessDialog(context, state.successMessage!);
+                _showSuccessDialog(context, successType.message);
               }
               // Clear the message after showing
               context.read<HomeCubit>().clearMessages();

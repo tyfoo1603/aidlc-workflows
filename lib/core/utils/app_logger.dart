@@ -205,7 +205,7 @@ class AppLogger {
   }
 
   /// Format map data for readable output
-  static void _formatMap(StringBuffer buffer, Map map,
+  static void _formatMap(StringBuffer buffer, Map<dynamic, dynamic> map,
       {int indent = 0, String color = '', String reset = ''}) {
     final indentStr = ' ' * indent;
     map.forEach((key, value) {
@@ -224,7 +224,7 @@ class AppLogger {
   }
 
   /// Format list data for readable output
-  static void _formatList(StringBuffer buffer, List list,
+  static void _formatList(StringBuffer buffer, List<dynamic> list,
       {int indent = 0, String color = '', String reset = ''}) {
     final indentStr = ' ' * indent;
     for (var i = 0; i < list.length; i++) {
@@ -252,7 +252,7 @@ class AppLogger {
     Map<String, dynamic>? queryParameters,
   }) {
     final buffer = StringBuffer();
-    final colorCode = _cyan;
+    const colorCode = _cyan;
     final color = _getColorCode(colorCode);
     final reset = _getColorCode(_reset);
     final white = _getColorCode(_white);
