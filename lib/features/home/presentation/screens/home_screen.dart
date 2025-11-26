@@ -76,10 +76,20 @@ class _HomeScreenState extends State<HomeScreen> {
             });
           }
 
-          // Show success message popup
+          // Show success message popup or snackbar
           if (state.successMessage != null) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              _showSuccessDialog(context, state.successMessage!);
+              // Show snackbar for token copy, dialog for other success messages
+              if (state.successMessage!.contains('Token copied')) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(state.successMessage!),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              } else {
+                _showSuccessDialog(context, state.successMessage!);
+              }
               // Clear the message after showing
               context.read<HomeCubit>().clearMessages();
             });
@@ -116,6 +126,33 @@ class _HomeScreenState extends State<HomeScreen> {
                   // User Summary Card
                   if (state.userSummary != null)
                     UserSummaryCard(userSummary: state.userSummary!),
+
+                  const SizedBox(height: 16),
+
+                  // Token Copy Section
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Authentication Token',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.copy),
+                          onPressed: () {
+                            context.read<HomeCubit>().copyTokenToClipboard();
+                          },
+                          tooltip: 'Copy token to clipboard',
+                        ),
+                      ],
+                    ),
+                  ),
 
                   const SizedBox(height: 16),
 

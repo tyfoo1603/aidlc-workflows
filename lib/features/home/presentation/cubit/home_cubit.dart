@@ -1,5 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_appauth/flutter_appauth.dart';
+import 'package:flutter/services.dart';
+import 'package:equatable/equatable.dart';
 import 'package:easy_app/core/navigation/navigation_service.dart';
 import 'package:easy_app/core/error/result.dart';
 import 'package:easy_app/core/config/app_config.dart';
@@ -18,7 +20,7 @@ import 'package:easy_app/core/di/dependency_injection.dart';
 import 'dart:convert';
 
 /// Home state
-class HomeState {
+class HomeState extends Equatable {
   final bool isLoading;
   final List<LandingCategory>? modules;
   final UserSummary? userSummary;
@@ -56,6 +58,17 @@ class HomeState {
       successMessage: successMessage ?? this.successMessage,
     );
   }
+
+  @override
+  List<Object?> get props => [
+        isLoading,
+        modules,
+        userSummary,
+        appVersion,
+        maintenanceStatus,
+        errorMessage,
+        successMessage,
+      ];
 }
 
 /// Home Cubit
@@ -195,9 +208,9 @@ class HomeCubit extends Cubit<HomeState> {
         await _tokenStorage.saveTokens(token);
 
         // Emit success message
-        // emit(state.copyWith(
-        //   successMessage: 'Login successful! Welcome back.',
-        // ));
+        emit(state.copyWith(
+          successMessage: 'Login successful! Welcome back.',
+        ));
 
         // Navigate to home
         _navigationService.navigateToHome();
@@ -286,5 +299,27 @@ class HomeCubit extends Cubit<HomeState> {
       }
     }
     return null;
+  }
+
+  /// Copy authentication token to clipboard
+  Future<void> copyTokenToClipboard() async {
+    try {
+      final tokens = await _tokenStorage.getTokens();
+      if (tokens == null || tokens.accessToken.isEmpty) {
+        emit(state.copyWith(
+          errorMessage: 'No authentication token found',
+        ));
+        return;
+      }
+
+      await Clipboard.setData(ClipboardData(text: tokens.accessToken));
+      emit(state.copyWith(
+        successMessage: 'Token copied to clipboard',
+      ));
+    } catch (e) {
+      emit(state.copyWith(
+        errorMessage: 'Failed to copy token: ${e.toString()}',
+      ));
+    }
   }
 }
